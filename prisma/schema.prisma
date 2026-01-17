@@ -1,0 +1,234 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // For credentials provider
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// CRM Models
+
+model Vendor {
+  id            Int           @id @default(autoincrement())
+  name          String
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  serviceType   String?
+  createdAt     DateTime      @default(now())
+  leads         Lead[]
+  projectItems  ProjectItem[]
+}
+
+model Lead {
+  id             Int         @id @default(autoincrement())
+  name           String
+  email          String?
+  phone          String
+  status         String      @default("NEW") // NEW, CONTACTED, QUALIFIED, NEGOTIATION, WON, LOST
+  source         String?
+  budgetRange    String?
+  assignedVendor Vendor?     @relation(fields: [vendorId], references: [id])
+  vendorId       Int?
+  notes          String?
+  notesList      Note[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  activities     Activity[]
+  quotations     Quotation[]
+  invoices       Invoice[]
+  projects       Project[]
+}
+
+model Project {
+  id          Int              @id @default(autoincrement())
+  name        String
+  lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId      Int
+  status      String           @default("CONCEPT") // CONCEPT, DESIGN, PROCUREMENT, EXECUTION, HANDOVER, COMPLETED
+  startDate   DateTime?
+  endDate     DateTime?
+  budget      Decimal          @default(0.00)
+  items       ProjectItem[]
+  milestones  Milestone[]
+  designDocs  DesignDocument[]
+  tasks       Task[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Milestone {
+  id        Int      @id @default(autoincrement())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  name      String
+  dueDate   DateTime?
+  status    String   @default("PENDING") // PENDING, COMPLETED
+}
+
+model DesignDocument {
+  id        Int      @id @default(autoincrement())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  title     String
+  url       String
+  status    String   @default("DRAFT") // DRAFT, SENT, APPROVED, REJECTED
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   Int
+  title       String
+  description String?
+  assignedTo  String?
+  status      String   @default("TODO") // TODO, IN_PROGRESS, DONE
+  dueDate     DateTime?
+}
+
+model ProjectItem {
+  id           Int      @id @default(autoincrement())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    Int
+  name         String
+  description  String?
+  category     String?  // FURNITURE, LIGHTING, FINISHES, ACCESSORIES, SERVICES
+  vendor       Vendor?  @relation(fields: [vendorId], references: [id])
+  vendorId     Int?
+  costPrice    Decimal  @default(0.00)
+  sellingPrice Decimal  @default(0.00)
+  status       String   @default("PROPOSED") // PROPOSED, APPROVED, ORDERED, DELIVERED, INSTALLED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId    Int
+}
+
+model Activity {
+  id           Int      @id @default(autoincrement())
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId       Int
+  activityType String   // CALL, MEETING, TASK, EMAIL
+  summary      String
+  description  String?
+  date         DateTime
+  completed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Product {
+  id             Int             @id @default(autoincrement())
+  name           String
+  code           String?         @unique
+  costPrice      Decimal         @default(0.00)
+  productPrice   Decimal         @default(0.00)
+  description    String?
+  createdAt      DateTime        @default(now())
+  quotationItems QuotationItem[]
+}
+
+model Quotation {
+  id          Int             @id @default(autoincrement())
+  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId      Int
+  date        DateTime        @default(now())
+  validUntil  DateTime?
+  totalAmount Decimal         @default(0.00)
+  createdAt   DateTime        @default(now())
+  items       QuotationItem[]
+  invoice     Invoice?
+}
+
+model QuotationItem {
+  id          Int       @id @default(autoincrement())
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  quotationId Int
+  product     Product?  @relation(fields: [productId], references: [id])
+  productId   Int?
+  description String
+  quantity    Int       @default(1)
+  unitPrice   Decimal
+  subtotal    Decimal
+}
+
+model Invoice {
+  id          Int       @id @default(autoincrement())
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+  quotationId Int?       @unique
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId      Int
+  invoiceDate DateTime  @default(now())
+  dueDate     DateTime?
+  amount      Decimal
+  status      String    @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  createdAt   DateTime  @default(now())
+  payments    Payment[]
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId   Int
+  amount      Decimal
+  paymentDate DateTime
+  method      String?
+  reference   String?
+  createdAt   DateTime @default(now())
+}

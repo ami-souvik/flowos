@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #fafafa; /* Zinc-50 */
+  --foreground: #27272a; /* Zinc-800 */
+}
+
+html.dark {
+  --background: #09090b; /* Zinc-950 */
+  --foreground: #e4e4e7; /* Zinc-200 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem; /* text-sm */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400; /* Lighter headings */
+  letter-spacing: -0.015em;
+}
+
+@keyframes partner-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-partner-scroll {
+  animation: partner-scroll 25s linear infinite;;
+}
